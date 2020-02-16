@@ -26,7 +26,11 @@ struct MenuButtonState {
 };
 
 struct ModelGuiState {
-    bool open {false};
+    std::string name {"Model"};
+
+    int active {0};
+    int edit {1};
+
     bool selected {false};
 };
 
@@ -41,7 +45,7 @@ struct State {
     Camera camera {{}};
     Font font {{}};
 
-    std::vector<std::tuple<Model, ModelPanelState>> models;
+    std::vector<std::tuple<Model, ModelGuiState>> models;
 
     std::vector<MenuButtonState> menu_buttons {
         {"File",
@@ -157,22 +161,48 @@ void do_objects_window(State& state) {
     auto win_reg = Rectangle{GetScreenWidth()-256, 32, 256, GetScreenHeight() - 128};
     GuiWindowBox(win_reg, "Inspector");
 
+    if (!CheckCollisionPointRec(GetMousePosition(), win_reg)) {
+        GuiLock();
+    } else {
+        GuiUnlock();
+    }
+
     float cursor_x = win_reg.x+MENU_MARGIN, cursor_y = win_reg.y+32;
 
+    const float sub_w = win_reg.width - MENU_MARGIN*2;
+
     const auto [bw, bh] = MeasureTextEx(state.font, "Load model", state.font.baseSize, 1);
-    if (GuiButton(Rectangle{cursor_x, cursor_y, win_reg.width-MENU_MARGIN*2, bh+10}, "Load model")) {
+    if (GuiButton(Rectangle{cursor_x, cursor_y, sub_w, bh+10}, "Load model")) {
 
     }
+
     cursor_y += bh+10+MENU_MARGIN;
     GuiLabel(Rectangle{
             cursor_x,
             cursor_y,
-            win_reg.width - MENU_MARGIN*2,
+            sub_w,
             bh+10}, "-- Models --");
-    cursor_y += bh+10+MENU_MARGIN;
 
-    for (const auto [model, model_state]: state.models) {
+    cursor_y += bh+10+MENU_MARGIN;
+    
+    static auto panel_scroll = Vector2{0.0f, 0.0f};
+    auto panel_rec = Rectangle{cursor_x, cursor_y, sub_w, win_reg.height-cursor_y};
+    auto panel_content_rec = Rectangle{0, 0, panel_rec.width, panel_rec.height * 4};
+    auto view = GuiScrollPanel(panel_rec, panel_content_rec, &panel_scroll);
+
+    BeginScissorMode(view.x, view.y, view.width, view.height);
+    for (auto& [model, model_state] : state.models) {
+        std::stringstream ss;
+        ss << "[Location] x: " << model.transform.m3
+           << " y: " << model.transform.m6
+           << " z: " << model.transform.m9;
+
+        GuiLabel(Rectangle{
+                panel_rec.x+panel_scroll.x,
+                panel_rec.y+panel_scroll.y,
+                100, 32}, ss.str().c_str());
     }
+    EndScissorMode();
 }
 
 void do_gui(State& state) {
@@ -214,7 +244,7 @@ int main () {
     GuiSetFont(state.font);
 
     // TEMP
-    state.models.push_back({load_model("models/z-assm.obj"), {}});
+    state.models.push_back({load_model("models/z-assm.obj"), {"z-assm"}});
 
     while (!WindowShouldClose() && state.running) {
 
