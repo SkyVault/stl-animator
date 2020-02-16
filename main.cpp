@@ -41,6 +41,7 @@ struct State {
 
     int model_loc {-1};
     int light_pos_loc {-1};
+    int diffuse_loc {-1};
 
     Camera camera {{}};
     Font font {{}};
@@ -76,6 +77,11 @@ void draw_model(const State& state, const Model& model) {
     model.materials[0].shader = state.shader;
 
     SetShaderValueMatrix(state.shader, state.model_loc, model.transform);
+    SetShaderValue(
+        state.shader,
+        state.diffuse_loc,
+        &model.materials[0].maps[0].color,
+        UNIFORM_VEC4);
 
     DrawModel(model, pos, 0.1, RAYWHITE);
 }
@@ -191,6 +197,13 @@ void do_objects_window(State& state) {
     auto view = GuiScrollPanel(panel_rec, panel_content_rec, &panel_scroll);
 
     BeginScissorMode(view.x, view.y, view.width, view.height);
+
+    float p_cursor_x = cursor_x;
+    float p_cursor_y = cursor_y;
+
+    cursor_x = panel_rec.x+panel_scroll.x;
+    cursor_y = panel_rec.y+panel_scroll.y;
+
     for (auto& [model, model_state] : state.models) {
         std::stringstream ss;
         ss << "[Location] x: " << model.transform.m3
@@ -198,11 +211,30 @@ void do_objects_window(State& state) {
            << " z: " << model.transform.m9;
 
         GuiLabel(Rectangle{
-                panel_rec.x+panel_scroll.x,
-                panel_rec.y+panel_scroll.y,
+                cursor_x,
+                cursor_y,
                 100, 32}, ss.str().c_str());
+        cursor_y += 32 + MENU_MARGIN;
+
+        ss.str("");
+
+        ss << "[Color]";
+        GuiLabel(Rectangle{
+                cursor_x,
+                cursor_y,
+                100, 32}, ss.str().c_str());
+        cursor_y += 32 + MENU_MARGIN;
+
+        model.materials[0].maps[0].color =
+            GuiColorPicker(Rectangle{
+                    cursor_x,
+                    cursor_y,
+                    100, 100}, model.materials[0].maps[0].color);
     }
     EndScissorMode();
+
+    cursor_x = p_cursor_x;
+    cursor_y = p_cursor_y;
 }
 
 void do_gui(State& state) {
@@ -237,6 +269,7 @@ int main () {
     state.shader = LoadShader("base_vs.glsl", "base_fs.glsl");
     state.model_loc = GetShaderLocation(state.shader, "model");
     state.light_pos_loc = GetShaderLocation(state.shader, "light_pos");
+    state.diffuse_loc = GetShaderLocation(state.shader, "diffuse");
 
     // Initialize the gui
     state.font = LoadFontEx("resources/Cantarell-Regular.otf", 16, NULL, -1);
@@ -249,7 +282,7 @@ int main () {
     while (!WindowShouldClose() && state.running) {
 
         // Update
-        UpdateCamera(&state.camera);          // Update camera
+        if (guiLocked) UpdateCamera(&state.camera);          // Update camera
 
         SetShaderValue(
             state.shader,
