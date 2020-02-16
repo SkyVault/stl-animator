@@ -18,27 +18,34 @@
 
 constexpr auto MENU_MARGIN {10};
 
+struct MenuButtonState {
+    std::string label {"Menu"};
+    std::vector<std::string> sub_options;
+    bool show_dropdown {false};
+};
+
 struct State {
     bool running = true;
 
-    Shader shader = {};
+    Shader shader {{}};
 
-    int model_loc = -1;
-    int light_pos_loc = -1;
+    int model_loc {-1};
+    int light_pos_loc {-1};
 
-    Camera camera = {};
+    Camera camera {{}};
+    Font font {{}};
 
     std::vector<Model> models;
 
-    std::vector<std::tuple<std::string, std::vector<std::string>>>
-    top_menu_buttons {
+    std::vector<MenuButtonState> menu_buttons {
         {"File",
          {"Load scene",
           "Save scene",
           "Import model",
           "Exit"}},
-        {"Edit", {}},
-        {"Render", {}}
+        {"Edit",
+         {"Why are you trying to edit something?"}},
+        {"Render", {}},
     };
 };
 
@@ -64,33 +71,84 @@ void draw_model(const State& state, const Model& model) {
 }
 
 void do_menu_bar(State& state) {
+    const auto font_size = state.font.baseSize;
+
     GuiPanel(Rectangle{0, 0, GetScreenWidth(), 32});
 
     float cursor_x = MENU_MARGIN;
 
-    for (const auto& [txt, options] : state.top_menu_buttons) {
+    // reset the dropdown state
+    bool last_show_dropdown = false;
+    bool first = true;
+    for (auto& m_state : state.menu_buttons) {
+        if (first) {
+            last_show_dropdown = m_state.show_dropdown;
+            first = false;
+            continue;
+        }
 
-        const auto w = MeasureText(txt.c_str(), GetFontDefault().baseSize);
+        if (last_show_dropdown) {
+            last_show_dropdown = m_state.show_dropdown;
+            m_state.show_dropdown = false;
+        }
+    }
+
+    for (auto& m_state : state.menu_buttons) {
+        const auto [txt, options, show_dropdown] = m_state;
+
+        const auto [w, h] = MeasureTextEx(state.font, txt.c_str(), font_size, 1);
         const auto reg = Rectangle{cursor_x, 0, w, 32};
         const auto mpos = GetMousePosition();
 
-        cursor_x += w + MENU_MARGIN;
-
-        bool show_drop_down =
-            CheckCollisionPointRec(mpos, reg);
+        if (!show_dropdown) m_state.show_dropdown = CheckCollisionPointRec(mpos, reg);
 
         if (GuiLabelButton(reg, txt.c_str())) {
-            show_drop_down = true;
+            m_state.show_dropdown = true;
         }
 
+        if (show_dropdown) {
+            float cursor_y = 32;
 
+            float panel_w = 0, panel_h = 0;
+            for (const auto& option : options) {
+                const auto [w, h] = MeasureTextEx(state.font, option.c_str(), font_size, 1);
+                if (w > panel_w) panel_w = w;
+                panel_h += h;
+            }
+
+            const auto drop_panel_reg = Rectangle{
+                cursor_x-MENU_MARGIN,
+                32,
+                panel_w+MENU_MARGIN*2,
+                panel_h+MENU_MARGIN*2};
+
+            auto drop_panel_collider = drop_panel_reg;
+            drop_panel_collider.y -= 32;
+            drop_panel_collider.height += 32;
+
+            GuiPanel(drop_panel_reg);
+
+            for (const auto& option : options) {
+
+                const auto reg = Rectangle{cursor_x, cursor_y+MENU_MARGIN, w, MENU_MARGIN*2};
+                if (GuiLabelButton(reg, option.c_str())) {
+                    //TODO
+                }
+
+                cursor_y += MENU_MARGIN*2;
+            }
+
+            if (!CheckCollisionPointRec(mpos, drop_panel_collider)) {
+                m_state.show_dropdown = false;
+            }
+        }
+
+        cursor_x += w + MENU_MARGIN;
     }
 }
 
 void draw_gui(State& state) {
     do_menu_bar(state);
-
-    GuiPanel(Rectangle{0, 32, 200, 400});
 
     GuiStatusBar(
         (Rectangle){ 0, GetScreenHeight() - 20, GetScreenWidth(), 20 },
@@ -116,6 +174,10 @@ int main () {
     state.shader = LoadShader("base_vs.glsl", "base_fs.glsl");
     state.model_loc = GetShaderLocation(state.shader, "model");
     state.light_pos_loc = GetShaderLocation(state.shader, "light_pos");
+
+    // Initialize the gui
+    state.font = LoadFont("resources/Cantarell-Regular.otf");
+    GuiSetFont(state.font);
 
     // TEMP
     state.models.push_back(load_model("models/z-assm.obj"));
