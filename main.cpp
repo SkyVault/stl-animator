@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include <functional>
+#include <algorithm>
 
 #include "stl_reader.h"
 
@@ -23,6 +24,8 @@ struct State {
     int light_pos_loc = -1;
 
     Camera camera = {};
+
+    std::vector<Model> models;
 };
 
 Model load_model(const std::string& path) {
@@ -33,7 +36,7 @@ void unload_model(Model& model) {
     UnloadModel(model);
 }
 
-void draw_model(State& state, Model& model) {
+void draw_model(const State& state, const Model& model) {
     auto pos = (Vector3){
         model.transform.m3,
         model.transform.m6,
@@ -72,7 +75,7 @@ int main () {
     state.model_loc = GetShaderLocation(state.shader, "model");
     state.light_pos_loc = GetShaderLocation(state.shader, "light_pos");
 
-    auto model = load_model("models/z-assm.obj");
+    state.models.push_back(load_model("models/z-assm.obj"));
 
     while (!WindowShouldClose() && state.running) {
 
@@ -89,7 +92,9 @@ int main () {
         ClearBackground(BLACK);
 
         BeginMode3D(state.camera);
-            draw_model(state, model);
+            for (const auto& model : state.models) {
+                draw_model(state, model);
+            }
         EndMode3D();
 
         draw_gui(state);
