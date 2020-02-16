@@ -1,1 +1,1 @@
-g++ -std=c++17 main.cpp -Wall -Wno-enum-compare -Wno-narrowing -Iinclude/ -Iraylib/src/ -Iraylib/src/external -lGL -lm -pthread -ldl -lrt -lX11 -lraylib -o stl-animator
+g++ -std=c++17 main.cpp mdMeshDecimator.cpp -Wall -Wno-enum-compare -Wno-narrowing -Iinclude/ -Iraylib/src/ -Iraylib/src/external -lGL -lm -pthread -ldl -lrt -lX11 -lraylib -o stl-animator.exe
