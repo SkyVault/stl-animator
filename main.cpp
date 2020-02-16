@@ -7,6 +7,7 @@
 #include <functional>
 #include <algorithm>
 #include <tuple>
+#include <sstream>
 
 #include "stl_reader.h"
 
@@ -24,6 +25,11 @@ struct MenuButtonState {
     bool show_dropdown {false};
 };
 
+struct ModelGuiState {
+    bool open {false};
+    bool selected {false};
+};
+
 struct State {
     bool running = true;
 
@@ -35,7 +41,7 @@ struct State {
     Camera camera {{}};
     Font font {{}};
 
-    std::vector<Model> models;
+    std::vector<std::tuple<Model, ModelPanelState>> models;
 
     std::vector<MenuButtonState> menu_buttons {
         {"File",
@@ -147,12 +153,39 @@ void do_menu_bar(State& state) {
     }
 }
 
-void draw_gui(State& state) {
+void do_objects_window(State& state) {
+    auto win_reg = Rectangle{GetScreenWidth()-256, 32, 256, GetScreenHeight() - 128};
+    GuiWindowBox(win_reg, "Inspector");
+
+    float cursor_x = win_reg.x+MENU_MARGIN, cursor_y = win_reg.y+32;
+
+    const auto [bw, bh] = MeasureTextEx(state.font, "Load model", state.font.baseSize, 1);
+    if (GuiButton(Rectangle{cursor_x, cursor_y, win_reg.width-MENU_MARGIN*2, bh+10}, "Load model")) {
+
+    }
+    cursor_y += bh+10+MENU_MARGIN;
+    GuiLabel(Rectangle{
+            cursor_x,
+            cursor_y,
+            win_reg.width - MENU_MARGIN*2,
+            bh+10}, "-- Models --");
+    cursor_y += bh+10+MENU_MARGIN;
+
+    for (const auto [model, model_state]: state.models) {
+    }
+}
+
+void do_gui(State& state) {
     do_menu_bar(state);
+    do_objects_window(state);
+
+    std::stringstream title;
+    title << "FPS: "
+          << 1.0f/GetFrameTime();
 
     GuiStatusBar(
         (Rectangle){ 0, GetScreenHeight() - 20, GetScreenWidth(), 20 },
-        "");
+        title.str().c_str());
 }
 
 int main () {
@@ -176,11 +209,12 @@ int main () {
     state.light_pos_loc = GetShaderLocation(state.shader, "light_pos");
 
     // Initialize the gui
-    state.font = LoadFont("resources/Cantarell-Regular.otf");
+    state.font = LoadFontEx("resources/Cantarell-Regular.otf", 16, NULL, -1);
+
     GuiSetFont(state.font);
 
     // TEMP
-    state.models.push_back(load_model("models/z-assm.obj"));
+    state.models.push_back({load_model("models/z-assm.obj"), {}});
 
     while (!WindowShouldClose() && state.running) {
 
@@ -197,13 +231,12 @@ int main () {
         ClearBackground(BLACK);
 
         BeginMode3D(state.camera);
-            for (const auto& model : state.models) {
-                draw_model(state, model);
-            }
+        for (const auto& [model, _] : state.models) {
+            draw_model(state, model);
+        }
         EndMode3D();
 
-        draw_gui(state);
-        DrawFPS(100, 100);
+        do_gui(state);
 
         EndDrawing();
     }
