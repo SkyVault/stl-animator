@@ -199,8 +199,8 @@ void do_objects_window(State& state) {
     float cursor_x = win_reg.x+MENU_MARGIN, cursor_y = win_reg.y+32;
     const float sub_w = win_reg.width - MENU_MARGIN*2;
 
-    const auto [bw, bh] = MeasureTextEx(state.font, "Load model", state.font.baseSize, 1);
-    if (GuiButton(Rectangle{cursor_x, cursor_y, sub_w, bh+10}, "Load model")) {
+    const auto [bw, bh] = MeasureTextEx(state.font, "#198#Load model", state.font.baseSize, 1);
+    if (GuiButton(Rectangle{cursor_x, cursor_y, sub_w, bh+10}, "#198#Load model")) {
         // Load a model
         state.file_dialog_state.fileDialogActive = true;
     }
