@@ -82,11 +82,15 @@ void draw_model(const State& state, const Model& model) {
     model.materials[0].shader = state.shader;
 
     SetShaderValueMatrix(state.shader, state.model_loc, model.transform);
+
+    auto color = model.materials[0].maps[0].color;
+    auto color_v3 = Vector3{color.r, color.g, color.b};
+
     SetShaderValue(
         state.shader,
         state.diffuse_loc,
-        &model.materials[0].maps[0].color,
-        UNIFORM_VEC4);
+        &color_v3,
+        UNIFORM_VEC3);
 
     DrawModel(model, pos, 0.1, RAYWHITE);
 }
