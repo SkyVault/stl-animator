@@ -224,20 +224,36 @@ void do_objects_window(State& state) {
     float p_cursor_x = cursor_x;
     float p_cursor_y = cursor_y;
 
+    float height = 0;
+
     cursor_x = panel_rec.x+panel_scroll.x;
     cursor_y = panel_rec.y+panel_scroll.y;
 
     for (auto& [model, model_state] : state.models) {
         std::stringstream ss;
-        ss << "[Location] x: " << model.transform.m3
-           << " y: " << model.transform.m6
-           << " z: " << model.transform.m9;
 
-        GuiLabel(Rectangle{
-                cursor_x,
-                cursor_y,
-                100, 32}, ss.str().c_str());
-        cursor_y += 32 + MENU_MARGIN;
+        auto r = Rectangle{cursor_x + 16, cursor_y + (32-24)/2, sub_w-(64), 24};
+
+        auto x = model.transform.m12;
+        x = GuiSlider(r, "X", TextFormat("%2.2f", (float)x), x, -100, 100);
+        r.y += 32;
+
+        auto y = model.transform.m13;
+        y = GuiSlider(r, "Y", TextFormat("%2.2f", (float)y), y, -100, 100);
+        r.y += 32;
+
+        auto z = model.transform.m14;
+        z = GuiSlider(r, "Z", TextFormat("%2.2f", (float)z), z, -100, 100);
+        r.y += 32;
+
+        model.transform.m12 = x;
+        model.transform.m13 = y;
+        model.transform.m14 = z;
+
+        cursor_y += r.height * 3 + MENU_MARGIN * 3;
+        height += r.height * 3 + MENU_MARGIN * 3;
+
+        DrawRectangle(cursor_x + MENU_MARGIN / 2, cursor_y, sub_w - MENU_MARGIN / 2, 1, Color{200, 200, 200, 255});
 
         ss.str("");
 
@@ -246,13 +262,20 @@ void do_objects_window(State& state) {
                 cursor_x,
                 cursor_y,
                 100, 32}, ss.str().c_str());
+
         cursor_y += 32 + MENU_MARGIN;
+        height += 32 + MENU_MARGIN;
 
         model.materials[0].maps[0].color =
             GuiColorPicker(Rectangle{
                     cursor_x,
                     cursor_y,
                     100, 100}, model.materials[0].maps[0].color);
+
+        cursor_y += 100 + MENU_MARGIN;
+        height += 100 + MENU_MARGIN;
+
+        DrawRectangle(cursor_x + MENU_MARGIN/2, cursor_y, sub_w-MENU_MARGIN/2, 3, Color{200, 200, 200, 255});
     }
     EndScissorMode();
 
@@ -304,6 +327,9 @@ int main () {
     state.font = LoadFontEx("resources/Cantarell-Regular.otf", 16, NULL, -1);
 
     GuiSetFont(state.font);
+
+    state.models.push_back(
+        {load_model("models/z-assm.obj"), {std::string{"z-assm"}}});
 
     while (!WindowShouldClose() && state.running) {
 
