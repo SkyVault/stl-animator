@@ -17,6 +17,9 @@
 #include "raygui.h"
 #include "rlgl.h"
 
+#define GUI_FILE_DIALOG_IMPLEMENTATION
+#include "gui_file_dialog.h"
+
 constexpr auto MENU_MARGIN {10};
 
 struct MenuButtonState {
@@ -45,6 +48,8 @@ struct State {
 
     Camera camera {{}};
     Font font {{}};
+
+    GuiFileDialogState file_dialog_state;
 
     std::vector<std::tuple<Model, ModelGuiState>> models;
 
@@ -163,23 +168,41 @@ void do_menu_bar(State& state) {
     }
 }
 
+void do_file_dialog_update(State& state) {
+    if (state.file_dialog_state.SelectFilePressed) {
+        // Load file
+
+        if (!IsFileExtension(state.file_dialog_state.fileNameText, ".obj")) {
+            // DO WARN
+        } else {
+            // Load the model
+
+            const auto path = "models/" + std::string{state.file_dialog_state.fileNameText};
+
+            state.models.push_back(
+                {load_model(path), {std::string{state.file_dialog_state.fileNameText}}});
+        }
+
+        state.file_dialog_state.SelectFilePressed = false;
+    }
+
+    GuiFileDialog(&state.file_dialog_state);
+}
+
 void do_objects_window(State& state) {
     auto win_reg = Rectangle{GetScreenWidth()-256, 32, 256, GetScreenHeight() - 128};
     GuiWindowBox(win_reg, "Inspector");
 
-    if (!CheckCollisionPointRec(GetMousePosition(), win_reg)) {
-        GuiLock();
-    } else {
-        GuiUnlock();
-    }
+    if (!CheckCollisionPointRec(GetMousePosition(), win_reg)) GuiLock();
+    else GuiUnlock();
 
     float cursor_x = win_reg.x+MENU_MARGIN, cursor_y = win_reg.y+32;
-
     const float sub_w = win_reg.width - MENU_MARGIN*2;
 
     const auto [bw, bh] = MeasureTextEx(state.font, "Load model", state.font.baseSize, 1);
     if (GuiButton(Rectangle{cursor_x, cursor_y, sub_w, bh+10}, "Load model")) {
-
+        // Load a model
+        state.file_dialog_state.fileDialogActive = true;
     }
 
     cursor_y += bh+10+MENU_MARGIN;
@@ -238,8 +261,12 @@ void do_objects_window(State& state) {
 }
 
 void do_gui(State& state) {
+    do_file_dialog_update(state);
+
+    if (state.file_dialog_state.fileDialogActive) GuiLock();
     do_menu_bar(state);
     do_objects_window(state);
+    GuiUnlock();
 
     std::stringstream title;
     title << "FPS: "
@@ -256,6 +283,8 @@ int main () {
     SetTargetFPS(60);
 
     State state;
+
+    state.file_dialog_state = InitGuiFileDialog();
 
     // Camera initialization
     state.camera.position = (Vector3){ 0.0f, 10.0f, 10.0f };
@@ -276,13 +305,10 @@ int main () {
 
     GuiSetFont(state.font);
 
-    // TEMP
-    state.models.push_back({load_model("models/z-assm.obj"), {"z-assm"}});
-
     while (!WindowShouldClose() && state.running) {
 
         // Update
-        if (guiLocked) UpdateCamera(&state.camera);          // Update camera
+        if (1) UpdateCamera(&state.camera);          // Update camera
 
         SetShaderValue(
             state.shader,

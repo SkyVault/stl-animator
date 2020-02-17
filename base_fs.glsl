@@ -7,7 +7,7 @@ in vec3 oNormal;
 
 uniform vec3 light_pos = vec3(0, 0, 0);
 uniform vec3 light_color = vec3(1, 1, 1);
-uniform vec4 diffuse = vec4(1, 1, 1);
+uniform vec4 diffuse = vec4(1, 1, 1, 1);
 
 void main() {
     // Ambient
