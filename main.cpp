@@ -48,6 +48,8 @@ struct ModelGuiState {
     int edit {1};
 
     bool selected {false};
+
+    Transform transform{Vector3{0,0,0}, Quaternion{0, 0, 0, 1}, Vector3{1, 1, 1}};
 };
 
 struct State {
@@ -86,26 +88,25 @@ void unload_model(Model& model) {
     UnloadModel(model);
 }
 
-void draw_model(const State& state, const Model& model) {
-    auto pos = (Vector3){
-        model.transform.m3,
-        model.transform.m6,
-        model.transform.m9 };
+void draw_model(const State& state, std::tuple<Model, ModelGuiState>& model_tuple) {
+    auto& [model, model_state] = model_tuple;
 
-    model.materials[0].shader = state.shader;
+    const auto scale_ = model_state.transform.scale;
+    const auto trans_ = model_state.transform.translation;
 
-    SetShaderValueMatrix(state.shader, state.model_loc, model.transform);
-
+    auto translation = MatrixTranslate(trans_.x, trans_.y, trans_.z);
+    auto rotation = QuaternionToMatrix(model_state.transform.rotation);
+    auto scale = MatrixScale(scale_.x, scale_.y, scale_.z);
     auto color = model.materials[0].maps[0].color;
     auto color_v3 = Vector3{color.r, color.g, color.b};
 
-    SetShaderValue(
-        state.shader,
-        state.diffuse_loc,
-        &color_v3,
-        UNIFORM_VEC3);
+    model.transform = MatrixMultiply(scale, MatrixMultiply(rotation, translation));
+    model.materials[0].shader = state.shader;
 
-    DrawModel(model, pos, 1.0, RAYWHITE);
+    SetShaderValueMatrix(state.shader, state.model_loc, model.transform);
+    SetShaderValue(state.shader, state.diffuse_loc, &color_v3, UNIFORM_VEC3);
+
+    DrawModel(model, trans_, 1.0, RAYWHITE);
 }
 
 void do_menu_bar(State& state) {
@@ -249,12 +250,15 @@ void do_objects_window(State& state) {
         GuiLabel(Rectangle{cursor_x, cursor_y, 100, 32}, "::[ TRANSLATION ]::");
         cursor_y += 32;
 
-        auto trans = model.transform;
+        auto* trans = &model_state.transform.translation;
+        auto* scale = &model_state.transform.scale;
+        auto* rotation = &model_state.transform.rotation;
+
         auto r = Rectangle{cursor_x + 16, cursor_y + (32-24)/2, sub_w-(64), 24};
 
-        model.transform.m12 = GuiSlider(r, "X", TextFormat("%2.2f", (float)trans.m12), trans.m12, -100, 100); r.y += 32;
-        model.transform.m13 = GuiSlider(r, "Y", TextFormat("%2.2f", (float)trans.m13), trans.m13, -100, 100); r.y += 32;
-        model.transform.m14 = GuiSlider(r, "Z", TextFormat("%2.2f", (float)trans.m14), trans.m14, -100, 100); r.y += 32;
+        trans->x = GuiSlider(r, "X", TextFormat("%2.2f", (float)trans->x), trans->x, -10, 10); r.y += 32;
+        trans->y = GuiSlider(r, "Y", TextFormat("%2.2f", (float)trans->y), trans->y, -10, 10); r.y += 32;
+        trans->z = GuiSlider(r, "Z", TextFormat("%2.2f", (float)trans->z), trans->z, -10, 10); r.y += 32;
 
         cursor_y += r.height * 3 + MENU_MARGIN * 3;
         height += r.height * 3 + MENU_MARGIN * 3;
@@ -268,15 +272,9 @@ void do_objects_window(State& state) {
         r.y = cursor_y;
 
         // SCALE
-        auto sx = trans.m0*trans.m0 + trans.m1*trans.m1 + trans.m2*trans.m2;
-        auto sy = trans.m4*trans.m4 + trans.m5*trans.m5 + trans.m6*trans.m6;
-        auto sz = trans.m8*trans.m8 + trans.m9*trans.m9 + trans.m10*trans.m10;
-
-        auto delta_x = GuiSlider(r, "X", TextFormat("%2.2f", (float)sx), sx, 0.001f, 100.f) - sx; r.y += 32;
-        auto delta_y = GuiSlider(r, "Y", TextFormat("%2.2f", (float)sy), sy, 0.001f, 100.f) - sy; r.y += 32;
-        auto delta_z = GuiSlider(r, "Z", TextFormat("%2.2f", (float)sz), sz, 0.001f, 100.f) - sz;
-
-        //model.transform = MatrixMultiply(model.transform, MatrixScale(delta_x, delta_y, delta_z));
+        scale->x = GuiSlider(r, "X", TextFormat("%2.2f", (float)scale->x), scale->x, 0.001f, 10.f); r.y += 32;
+        scale->y = GuiSlider(r, "Y", TextFormat("%2.2f", (float)scale->y), scale->y, 0.001f, 10.f); r.y += 32;
+        scale->z = GuiSlider(r, "Z", TextFormat("%2.2f", (float)scale->z), scale->z, 0.001f, 10.f);
 
         cursor_y = r.y + MENU_MARGIN*4;
         DrawRectangle(cursor_x + MENU_MARGIN / 2, cursor_y, sub_w - MENU_MARGIN / 2, 1, Color{200, 200, 200, 255});
@@ -375,8 +373,8 @@ int main () {
         ClearBackground(BLACK);
 
         BeginMode3D(state.camera);
-        for (const auto& [model, _] : state.models) {
-            draw_model(state, model);
+        for (auto& model_tuple : state.models) {
+            draw_model(state, model_tuple);
         }
         EndMode3D();
 
