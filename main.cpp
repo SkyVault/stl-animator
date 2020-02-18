@@ -341,7 +341,7 @@ int main () {
     SetCameraMode(state.camera, CAMERA_FREE); // Set a free camera mode
 
     // Shader initialization
-    state.shader = LoadShader("base_vs.glsl", "base_fs.glsl");
+    state.shader = LoadShader("resources/phong_vs.glsl", "resources/phong_fs.glsl");
 
     state.shader.locs[LOC_MATRIX_MODEL] = GetShaderLocation(state.shader, "matModel");
     state.shader.locs[LOC_VECTOR_VIEW] = GetShaderLocation(state.shader, "viewPos");
@@ -374,7 +374,7 @@ int main () {
 
         timer += GetFrameTime();
 
-        auto pos = (Vector3){10, 5, 10};
+        auto pos = (Vector3){10, 5, -10};
         for (int i = 0; i < MAX_LIGHTS; i++) {
             lights[i].position = pos;
             UpdateLightValues(state.shader, lights[i]);
