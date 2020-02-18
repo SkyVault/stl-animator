@@ -13,9 +13,11 @@
 
 #define RAYGUI_IMPLEMENTATION
 #define RAYGUI_SUPPORT_ICONS
-
 #include "raygui.h"
 #include "rlgl.h"
+
+#define RLIGHTS_IMPLEMENTATION
+#include "rlights.h"
 
 #define GUI_FILE_DIALOG_IMPLEMENTATION
 #include "gui_file_dialog.h"
@@ -57,10 +59,6 @@ struct State {
 
     Shader shader {{}};
 
-    int model_loc {-1};
-    int light_pos_loc {-1};
-    int diffuse_loc {-1};
-
     Camera camera {{}};
     Font font {{}};
 
@@ -80,8 +78,10 @@ struct State {
     };
 };
 
-Model load_model(const std::string& path) {
-    return LoadModel(path.c_str());
+Model load_model(const State& state, const std::string& path) {
+    auto model = LoadModel(path.c_str());
+    model.materials[0].shader = state.shader;
+    return model;
 }
 
 void unload_model(Model& model) {
@@ -101,10 +101,6 @@ void draw_model(const State& state, std::tuple<Model, ModelGuiState>& model_tupl
     auto color_v3 = Vector3{color.r, color.g, color.b};
 
     model.transform = MatrixMultiply(scale, MatrixMultiply(rotation, translation));
-    model.materials[0].shader = state.shader;
-
-    SetShaderValueMatrix(state.shader, state.model_loc, model.transform);
-    SetShaderValue(state.shader, state.diffuse_loc, &color_v3, UNIFORM_VEC3);
 
     DrawModel(model, trans_, 1.0, RAYWHITE);
 }
@@ -198,7 +194,7 @@ void do_file_dialog_update(State& state) {
             const auto path = "models/" + std::string{state.file_dialog_state.fileNameText};
 
             state.models.push_back(
-                {load_model(path), {std::string{state.file_dialog_state.fileNameText}}});
+                {load_model(state, path), {std::string{state.file_dialog_state.fileNameText}}});
         }
 
         state.file_dialog_state.SelectFilePressed = false;
@@ -346,9 +342,20 @@ int main () {
 
     // Shader initialization
     state.shader = LoadShader("base_vs.glsl", "base_fs.glsl");
-    state.model_loc = GetShaderLocation(state.shader, "model");
-    state.light_pos_loc = GetShaderLocation(state.shader, "light_pos");
-    state.diffuse_loc = GetShaderLocation(state.shader, "diffuse");
+
+    state.shader.locs[LOC_MATRIX_MODEL] = GetShaderLocation(state.shader, "matModel");
+    state.shader.locs[LOC_VECTOR_VIEW] = GetShaderLocation(state.shader, "viewPos");
+
+    int ambientLoc = GetShaderLocation(state.shader, "ambient");
+    float val[] = {0.2f, 0.2f, 0.2f, 1.0f};
+    SetShaderValue(state.shader, ambientLoc, val, UNIFORM_VEC4);
+
+    Light lights[MAX_LIGHTS] = { 0 };
+    lights[0] = CreateLight(LIGHT_POINT, (Vector3){ -10, 0, -10 }, (Vector3){0}, WHITE, state.shader);
+
+    for (int i = 0; i < MAX_LIGHTS; i++) {
+        UpdateLightValues(state.shader, lights[i]);
+    }
 
     // Initialize the gui
     state.font = LoadFontEx("resources/Cantarell-Regular.otf", 16, NULL, -1);
@@ -356,18 +363,22 @@ int main () {
     GuiSetFont(state.font);
 
     state.models.push_back(
-        {load_model("models/cube.obj"), {std::string{"cube"}}});
+        {load_model(state, "models/cube.obj"), {std::string{"cube"}}});
 
     while (!WindowShouldClose() && state.running) {
 
         // Update
         if (1) UpdateCamera(&state.camera);          // Update camera
 
-        SetShaderValue(
-            state.shader,
-            state.light_pos_loc,
-            &state.camera.position,
-            UNIFORM_VEC3);
+        static float timer = 0;
+
+        timer += GetFrameTime();
+
+        auto pos = (Vector3){10, 5, 10};
+        for (int i = 0; i < MAX_LIGHTS; i++) {
+            lights[i].position = pos;
+            UpdateLightValues(state.shader, lights[i]);
+        }
 
         BeginDrawing();
         ClearBackground(BLACK);
@@ -376,6 +387,7 @@ int main () {
         for (auto& model_tuple : state.models) {
             draw_model(state, model_tuple);
         }
+        DrawSphere(pos, 1, RED);
         EndMode3D();
 
         do_gui(state);
