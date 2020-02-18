@@ -363,7 +363,7 @@ int main () {
     GuiSetFont(state.font);
 
     state.models.push_back(
-        {load_model(state, "models/cube.obj"), {std::string{"cube"}}});
+        {load_model(state, "models/monkey.obj"), {std::string{"monkey"}}});
 
     while (!WindowShouldClose() && state.running) {
 
@@ -374,7 +374,7 @@ int main () {
 
         timer += GetFrameTime();
 
-        auto pos = (Vector3){10, 5, -10};
+        auto pos = (Vector3){-10, 5, 10};
         for (int i = 0; i < MAX_LIGHTS; i++) {
             lights[i].position = pos;
             UpdateLightValues(state.shader, lights[i]);
