@@ -21,6 +21,19 @@
 #include "gui_file_dialog.h"
 
 constexpr auto MENU_MARGIN {10};
+constexpr auto TIMELINE_HEIGHT {32};
+constexpr auto STATUS_BAR_HEIGHT {20};
+constexpr auto TOTAL_BOTTOM_PANEL_HEIGHT {TIMELINE_HEIGHT+STATUS_BAR_HEIGHT};
+
+enum class Interp {
+    LINEAR,
+};
+
+struct KeyFrame {
+    std::tuple<Transform, Transform> transform;
+    Interp interpolation{Interp::LINEAR};
+    int frames {60};
+};
 
 struct MenuButtonState {
     std::string label {"Menu"};
@@ -92,7 +105,7 @@ void draw_model(const State& state, const Model& model) {
         &color_v3,
         UNIFORM_VEC3);
 
-    DrawModel(model, pos, 0.1, RAYWHITE);
+    DrawModel(model, pos, 1.0, RAYWHITE);
 }
 
 void do_menu_bar(State& state) {
@@ -194,7 +207,7 @@ void do_file_dialog_update(State& state) {
 }
 
 void do_objects_window(State& state) {
-    auto win_reg = Rectangle{GetScreenWidth()-256, 32, 256, GetScreenHeight() - 128};
+    auto win_reg = Rectangle{GetScreenWidth()-256, 32, 256, GetScreenHeight() - TOTAL_BOTTOM_PANEL_HEIGHT};
     GuiWindowBox(win_reg, "Inspector");
 
     if (!CheckCollisionPointRec(GetMousePosition(), win_reg)) GuiLock();
@@ -210,11 +223,7 @@ void do_objects_window(State& state) {
     }
 
     cursor_y += bh+10+MENU_MARGIN;
-    GuiLabel(Rectangle{
-            cursor_x,
-            cursor_y,
-            sub_w,
-            bh+10}, "-- Models --");
+    GuiLabel(Rectangle{cursor_x, cursor_y, sub_w, bh+10}, "-- Models --");
 
     cursor_y += bh+10+MENU_MARGIN;
     
@@ -236,39 +245,47 @@ void do_objects_window(State& state) {
     for (auto& [model, model_state] : state.models) {
         std::stringstream ss;
 
+        // TRANSFORM
+        GuiLabel(Rectangle{cursor_x, cursor_y, 100, 32}, "::[ TRANSLATION ]::");
+        cursor_y += 32;
+
+        auto trans = model.transform;
         auto r = Rectangle{cursor_x + 16, cursor_y + (32-24)/2, sub_w-(64), 24};
 
-        auto x = model.transform.m12;
-        x = GuiSlider(r, "X", TextFormat("%2.2f", (float)x), x, -100, 100);
-        r.y += 32;
-
-        auto y = model.transform.m13;
-        y = GuiSlider(r, "Y", TextFormat("%2.2f", (float)y), y, -100, 100);
-        r.y += 32;
-
-        auto z = model.transform.m14;
-        z = GuiSlider(r, "Z", TextFormat("%2.2f", (float)z), z, -100, 100);
-        r.y += 32;
-
-        model.transform.m12 = x;
-        model.transform.m13 = y;
-        model.transform.m14 = z;
+        model.transform.m12 = GuiSlider(r, "X", TextFormat("%2.2f", (float)trans.m12), trans.m12, -100, 100); r.y += 32;
+        model.transform.m13 = GuiSlider(r, "Y", TextFormat("%2.2f", (float)trans.m13), trans.m13, -100, 100); r.y += 32;
+        model.transform.m14 = GuiSlider(r, "Z", TextFormat("%2.2f", (float)trans.m14), trans.m14, -100, 100); r.y += 32;
 
         cursor_y += r.height * 3 + MENU_MARGIN * 3;
         height += r.height * 3 + MENU_MARGIN * 3;
 
         DrawRectangle(cursor_x + MENU_MARGIN / 2, cursor_y, sub_w - MENU_MARGIN / 2, 1, Color{200, 200, 200, 255});
 
-        ss.str("");
+        cursor_y += 1 + MENU_MARGIN;
 
-        ss << "[Color]";
-        GuiLabel(Rectangle{
-                cursor_x,
-                cursor_y,
-                100, 32}, ss.str().c_str());
+        GuiLabel(Rectangle{cursor_x, cursor_y, 100, 32}, "::[ SCALE ]::");
+        cursor_y += 32;
+        r.y = cursor_y;
 
-        cursor_y += 32 + MENU_MARGIN;
-        height += 32 + MENU_MARGIN;
+        // SCALE
+        auto sx = trans.m0*trans.m0 + trans.m1*trans.m1 + trans.m2*trans.m2;
+        auto sy = trans.m4*trans.m4 + trans.m5*trans.m5 + trans.m6*trans.m6;
+        auto sz = trans.m8*trans.m8 + trans.m9*trans.m9 + trans.m10*trans.m10;
+
+        auto delta_x = GuiSlider(r, "X", TextFormat("%2.2f", (float)sx), sx, 0.001f, 100.f) - sx; r.y += 32;
+        auto delta_y = GuiSlider(r, "Y", TextFormat("%2.2f", (float)sy), sy, 0.001f, 100.f) - sy; r.y += 32;
+        auto delta_z = GuiSlider(r, "Z", TextFormat("%2.2f", (float)sz), sz, 0.001f, 100.f) - sz;
+
+        //model.transform = MatrixMultiply(model.transform, MatrixScale(delta_x, delta_y, delta_z));
+
+        cursor_y = r.y + MENU_MARGIN*4;
+        DrawRectangle(cursor_x + MENU_MARGIN / 2, cursor_y, sub_w - MENU_MARGIN / 2, 1, Color{200, 200, 200, 255});
+        cursor_y += MENU_MARGIN;
+
+        GuiLabel(Rectangle{cursor_x, cursor_y, 100, 32}, "::[ COLOR ]::");
+
+        cursor_y += 32;
+        height += 32;
 
         model.materials[0].maps[0].color =
             GuiColorPicker(Rectangle{
@@ -287,12 +304,20 @@ void do_objects_window(State& state) {
     cursor_y = p_cursor_y;
 }
 
+void do_timeline(State& state) {
+    auto panel = Rectangle{0, GetScreenHeight()-TOTAL_BOTTOM_PANEL_HEIGHT, GetScreenWidth(), TIMELINE_HEIGHT};
+    GuiPanel(panel);
+
+    DrawRectangle(panel.x + 4, panel.y + 4, panel.width-8, panel.height-8, Color{50, 50, 50, 255});
+}
+
 void do_gui(State& state) {
     do_file_dialog_update(state);
 
     if (state.file_dialog_state.fileDialogActive) GuiLock();
     do_menu_bar(state);
     do_objects_window(state);
+    do_timeline(state);
     GuiUnlock();
 
     std::stringstream title;
@@ -300,7 +325,7 @@ void do_gui(State& state) {
           << 1.0f/GetFrameTime();
 
     GuiStatusBar(
-        (Rectangle){ 0, GetScreenHeight() - 20, GetScreenWidth(), 20 },
+        (Rectangle){0, GetScreenHeight() - STATUS_BAR_HEIGHT, GetScreenWidth(), STATUS_BAR_HEIGHT},
         title.str().c_str());
 }
 
@@ -333,7 +358,7 @@ int main () {
     GuiSetFont(state.font);
 
     state.models.push_back(
-        {load_model("models/z-assm.obj"), {std::string{"z-assm"}}});
+        {load_model("models/cube.obj"), {std::string{"cube"}}});
 
     while (!WindowShouldClose() && state.running) {
 

@@ -11,7 +11,7 @@ out vec3 oFragPos;
 out vec3 oNormal;
 
 void main() {
-    gl_Position = mvp * vec4(aPos, 1.0);
     oNormal = aNormal;
     oFragPos = vec3(model * vec4(aPos, 1.0));
+    gl_Position = mvp * vec4(aPos, 1.0);
 }
