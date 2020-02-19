@@ -27,14 +27,17 @@ constexpr auto TIMELINE_HEIGHT {32};
 constexpr auto STATUS_BAR_HEIGHT {20};
 constexpr auto TOTAL_BOTTOM_PANEL_HEIGHT {TIMELINE_HEIGHT+STATUS_BAR_HEIGHT};
 
+constexpr auto FRAMES_A_SECOND {60};
+
 enum class Interp {
     LINEAR,
 };
 
 struct KeyFrame {
-    std::tuple<Transform, Transform> transform;
+    Transform transform;
     Interp interpolation{Interp::LINEAR};
-    int frames {60};
+
+    int start_frame {0}; // Where the keyframe is located in time
 };
 
 struct MenuButtonState {
@@ -52,6 +55,8 @@ struct ModelGuiState {
     bool selected {false};
 
     Transform transform{Vector3{0,0,0}, Quaternion{0, 0, 0, 1}, Vector3{1, 1, 1}};
+
+    std::vector<KeyFrame> keyframes{};
 };
 
 struct State {
@@ -76,6 +81,8 @@ struct State {
          {"Why are you trying to edit something?"}},
         {"Render", {}},
     };
+
+    int frame_selected {-1};
 };
 
 Model load_model(const State& state, const std::string& path) {
@@ -303,6 +310,22 @@ void do_timeline(State& state) {
     GuiPanel(panel);
 
     DrawRectangle(panel.x + 4, panel.y + 4, panel.width-8, panel.height-8, Color{50, 50, 50, 255});
+
+    constexpr auto frame_width = 8;
+
+    const auto mouse_pos = GetMousePosition();
+
+    // We have a max animation length of a minute at 60 frames a second
+    for (int i = 0; i < (FRAMES_A_SECOND*60); i++) {
+        auto c = i == state.frame_selected ? Color{255, 0, 255, 255} : Color{100, 100, 100, 255};
+        DrawRectangle(panel.x + 4 + frame_width * i, panel.y + 4, frame_width, panel.height-8, c);
+        DrawRectangle((panel.x + 4 + frame_width * i) + frame_width - 1, panel.y + 4, 1, panel.height-8, Color{0, 0, 0, 255});
+
+        if (!IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) continue;
+        if (CheckCollisionPointRec(mouse_pos, Rectangle{panel.x+4+frame_width*i,panel.y+4,frame_width,panel.height-8})){
+            state.frame_selected = i;
+        }
+    }
 }
 
 void do_gui(State& state) {
