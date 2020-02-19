@@ -59,6 +59,7 @@ struct ModelGuiState {
     bool selected{false};
 
     Color blend{RAYWHITE};
+    float blend_timer{0};
 
     Transform transform{Vector3{0,0,0}, Quaternion{0, 0, 0, 1}, Vector3{1, 1, 1}};
 
@@ -140,9 +141,10 @@ void draw_model(const State& state, std::tuple<Model, ModelGuiState>& model_tupl
     model.transform = MatrixMultiply(scale, MatrixMultiply(rotation, translation));
 
     auto blend = model_state.blend;
-
     if (model_state.selected) {
-        blend = RED;
+        float t = 0.5 + (cos(model_state.blend_timer)/2);
+        blend = Color{255, (t/2+0.5)*255, (t/2+0.5)*255, 255};
+        model_state.blend_timer += GetFrameTime()*10.0f;
     }
 
     DrawModel(model, trans_, 1.0, blend);
