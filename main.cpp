@@ -22,7 +22,7 @@
 #define GUI_FILE_DIALOG_IMPLEMENTATION
 #include "gui_file_dialog.h"
 
-constexpr auto MENU_MARGIN {10};
+constexpr auto MARGIN {10};
 constexpr auto TIMELINE_HEIGHT {32};
 constexpr auto STATUS_BAR_HEIGHT {20};
 constexpr auto TOTAL_BOTTOM_PANEL_HEIGHT {TIMELINE_HEIGHT+STATUS_BAR_HEIGHT};
@@ -141,7 +141,7 @@ void do_menu_bar(State& state) {
 
     GuiPanel(Rectangle{0, 0, GetScreenWidth(), 32});
 
-    float cursor_x = MENU_MARGIN;
+    float cursor_x = MARGIN;
 
     // reset the dropdown state
     bool last_show_dropdown = false;
@@ -183,10 +183,10 @@ void do_menu_bar(State& state) {
             }
 
             const auto drop_panel_reg = Rectangle{
-                cursor_x-MENU_MARGIN,
+                cursor_x-MARGIN,
                 32,
-                panel_w+MENU_MARGIN*2,
-                panel_h+MENU_MARGIN*2};
+                panel_w+MARGIN*2,
+                panel_h+MARGIN*2};
 
             auto drop_panel_collider = drop_panel_reg;
             drop_panel_collider.y -= 32;
@@ -196,12 +196,12 @@ void do_menu_bar(State& state) {
 
             for (const auto& option : options) {
 
-                const auto reg = Rectangle{cursor_x, cursor_y+MENU_MARGIN, w, MENU_MARGIN*2};
+                const auto reg = Rectangle{cursor_x, cursor_y+MARGIN, w, MARGIN*2};
                 if (GuiLabelButton(reg, option.c_str())) {
                     //TODO
                 }
 
-                cursor_y += MENU_MARGIN*2;
+                cursor_y += MARGIN*2;
             }
 
             if (!CheckCollisionPointRec(mpos, drop_panel_collider)) {
@@ -209,7 +209,7 @@ void do_menu_bar(State& state) {
             }
         }
 
-        cursor_x += w + MENU_MARGIN;
+        cursor_x += w + MARGIN;
     }
 }
 
@@ -241,8 +241,8 @@ void do_objects_window(State& state) {
     if (!CheckCollisionPointRec(GetMousePosition(), win_reg)) GuiLock();
     else GuiUnlock();
 
-    float cursor_x = win_reg.x+MENU_MARGIN, cursor_y = win_reg.y+32;
-    const float sub_w = win_reg.width - MENU_MARGIN*2;
+    float cursor_x = win_reg.x+MARGIN, cursor_y = win_reg.y+32;
+    const float sub_w = win_reg.width - MARGIN*2;
 
     const auto [bw, bh] = MeasureTextEx(state.font, "#198#Load model", state.font.baseSize, 1);
     if (GuiButton(Rectangle{cursor_x, cursor_y, sub_w, bh+10}, "#198#Load model")) {
@@ -250,10 +250,10 @@ void do_objects_window(State& state) {
         state.file_dialog_state.fileDialogActive = true;
     }
 
-    cursor_y += bh+10+MENU_MARGIN;
+    cursor_y += bh+10+MARGIN;
     GuiLabel(Rectangle{cursor_x, cursor_y, sub_w, bh+10}, "-- Models --");
 
-    cursor_y += bh+10+MENU_MARGIN;
+    cursor_y += bh+10+MARGIN;
     
     static auto panel_scroll = Vector2{0.0f, 0.0f};
     auto panel_rec = Rectangle{cursor_x, cursor_y, sub_w, win_reg.height-cursor_y};
@@ -274,15 +274,15 @@ void do_objects_window(State& state) {
     for (auto& [model, model_state] : state.models) {
         std::stringstream ss;
 
-        cursor_y += MENU_MARGIN;
+        cursor_y += MARGIN;
 
         if (GuiDropDown(state, i++, Rectangle{cursor_x, cursor_y, sub_w, bh+10}, "Entity", 0)) {
-            cursor_y += bh+10+MENU_MARGIN;
+            cursor_y += bh+10+MARGIN;
 
-            if (GuiButton(Rectangle{cursor_x+MENU_MARGIN, cursor_y, sub_w-MENU_MARGIN*3, bh+10}, "#48#Insert Keyframe")) {
+            if (GuiButton(Rectangle{cursor_x+MARGIN, cursor_y, sub_w-MARGIN*3, bh+10}, "#48#Insert Keyframe")) {
 
             }
-            cursor_y += bh+10+MENU_MARGIN;
+            cursor_y += bh+10+MARGIN;
 
             // TRANSFORM
             GuiLabel(Rectangle{cursor_x, cursor_y, 100, 32}, "::[ TRANSLATION ]::");
@@ -298,12 +298,12 @@ void do_objects_window(State& state) {
             trans->y = GuiSlider(r, "Y", TextFormat("%2.2f", (float)trans->y), trans->y, -10, 10); r.y += 32;
             trans->z = GuiSlider(r, "Z", TextFormat("%2.2f", (float)trans->z), trans->z, -10, 10); r.y += 32;
 
-            cursor_y += r.height * 3 + MENU_MARGIN * 3;
-            height += r.height * 3 + MENU_MARGIN * 3;
+            cursor_y += r.height * 3 + MARGIN * 3;
+            height += r.height * 3 + MARGIN * 3;
 
-            DrawRectangle(cursor_x + MENU_MARGIN / 2, cursor_y, sub_w - MENU_MARGIN / 2, 1, Color{200, 200, 200, 255});
+            DrawRectangle(cursor_x + MARGIN / 2, cursor_y, sub_w - MARGIN / 2, 1, Color{200, 200, 200, 255});
 
-            cursor_y += 1 + MENU_MARGIN;
+            cursor_y += 1 + MARGIN;
 
             GuiLabel(Rectangle{cursor_x, cursor_y, 100, 32}, "::[ SCALE ]::");
             cursor_y += 32;
@@ -314,9 +314,9 @@ void do_objects_window(State& state) {
             scale->y = GuiSlider(r, "Y", TextFormat("%2.2f", (float)scale->y), scale->y, 0.001f, 10.f); r.y += 32;
             scale->z = GuiSlider(r, "Z", TextFormat("%2.2f", (float)scale->z), scale->z, 0.001f, 10.f);
 
-            cursor_y = r.y + MENU_MARGIN*4;
-            DrawRectangle(cursor_x + MENU_MARGIN / 2, cursor_y, sub_w - MENU_MARGIN / 2, 1, Color{200, 200, 200, 255});
-            cursor_y += MENU_MARGIN;
+            cursor_y = r.y + MARGIN*4;
+            DrawRectangle(cursor_x + MARGIN / 2, cursor_y, sub_w - MARGIN / 2, 1, Color{200, 200, 200, 255});
+            cursor_y += MARGIN;
 
             GuiLabel(Rectangle{cursor_x, cursor_y, 100, 32}, "::[ COLOR ]::");
 
@@ -329,13 +329,13 @@ void do_objects_window(State& state) {
                         cursor_y,
                         100, 100}, model.materials[0].maps[0].color);
 
-            cursor_y += 100 + MENU_MARGIN;
-            height += 100 + MENU_MARGIN;
+            cursor_y += 100 + MARGIN;
+            height += 100 + MARGIN;
         }
 
-        cursor_y += bh+10+MENU_MARGIN;
+        cursor_y += bh+10+MARGIN;
 
-        DrawRectangle(cursor_x + MENU_MARGIN/2, cursor_y, sub_w-MENU_MARGIN/2, 3, Color{200, 200, 200, 255});
+        DrawRectangle(cursor_x + MARGIN/2, cursor_y, sub_w-MARGIN/2, 3, Color{200, 200, 200, 255});
     }
     EndScissorMode();
 
