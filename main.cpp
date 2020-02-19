@@ -250,7 +250,7 @@ void do_objects_window(State& state) {
         std::stringstream ss;
 
         cursor_y += MENU_MARGIN;
-        if (GuiButton(Rectangle{cursor_x+MENU_MARGIN, cursor_y, sub_w-MENU_MARGIN*3, bh+10}, "Insert Keyframe")) {
+        if (GuiButton(Rectangle{cursor_x+MENU_MARGIN, cursor_y, sub_w-MENU_MARGIN*3, bh+10}, "#48#Insert Keyframe")) {
 
         }
         cursor_y += bh+10+MENU_MARGIN;
