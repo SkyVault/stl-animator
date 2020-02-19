@@ -56,6 +56,10 @@ struct ModelGuiState {
     int active {0};
     int edit {1};
 
+    bool selected{false};
+
+    Color blend{RAYWHITE};
+
     Transform transform{Vector3{0,0,0}, Quaternion{0, 0, 0, 1}, Vector3{1, 1, 1}};
 
     std::vector<KeyFrame> keyframes{};
@@ -129,12 +133,19 @@ void draw_model(const State& state, std::tuple<Model, ModelGuiState>& model_tupl
     auto translation = MatrixTranslate(trans_.x, trans_.y, trans_.z);
     auto rotation = QuaternionToMatrix(model_state.transform.rotation);
     auto scale = MatrixScale(scale_.x, scale_.y, scale_.z);
+
     auto color = model.materials[0].maps[0].color;
     auto color_v3 = Vector3{color.r, color.g, color.b};
 
     model.transform = MatrixMultiply(scale, MatrixMultiply(rotation, translation));
 
-    DrawModel(model, trans_, 1.0, RAYWHITE);
+    auto blend = model_state.blend;
+
+    if (model_state.selected) {
+        blend = RED;
+    }
+
+    DrawModel(model, trans_, 1.0, blend);
 }
 
 void do_menu_bar(State& state) {
@@ -278,7 +289,12 @@ void do_objects_window(State& state) {
         cursor_y += MARGIN;
 
         std::string s = "Model [" + std::to_string(i) + "]";
-        if (GuiDropDown(state, i++, Rectangle{cursor_x, cursor_y, sub_w, bh+10}, s.c_str(), 0)) {
+
+        model_state.selected = false;
+        if (GuiDropDown(state, i, Rectangle{cursor_x, cursor_y, sub_w, bh+10}, s.c_str(), 0)) {
+            model_state.selected = true;
+            state.model_selected = i;
+
             cursor_y += bh+10+MARGIN;
 
             if (GuiButton(Rectangle{cursor_x+MARGIN, cursor_y, sub_w-MARGIN*3, bh+10}, "#48#Insert Keyframe")) {
@@ -342,6 +358,8 @@ void do_objects_window(State& state) {
         cursor_y += bh+10+MARGIN;
 
         DrawRectangle(cursor_x + MARGIN/2, cursor_y, sub_w-MARGIN/2, 3, Color{200, 200, 200, 255});
+
+        i++;
     }
 
     EndScissorMode();
