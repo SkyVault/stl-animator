@@ -29,6 +29,10 @@ constexpr auto TOTAL_BOTTOM_PANEL_HEIGHT {TIMELINE_HEIGHT+STATUS_BAR_HEIGHT};
 
 constexpr auto FRAMES_A_SECOND {60};
 
+struct ToggleDropdownState {
+    bool open{false};
+};
+
 enum class Interp {
     LINEAR,
 };
@@ -69,6 +73,8 @@ struct State {
 
     GuiFileDialogState file_dialog_state;
 
+    ToggleDropdownState toggle_drop_down_states[100];
+
     std::vector<std::tuple<Model, ModelGuiState>> models;
 
     std::vector<MenuButtonState> menu_buttons {
@@ -84,6 +90,24 @@ struct State {
 
     int frame_selected {-1};
 };
+
+bool GuiDropDown(State& state, int id, Rectangle rect, const char* text, int flags) {
+    auto* dstate = &state.toggle_drop_down_states[id];
+
+    const auto padding = GuiGetStyle(DROPDOWNBOX, ARROW_PADDING);
+    DrawTriangle(
+        Vector2{-10 + rect.x+rect.width-padding,rect.y+rect.height/2 - 2},
+        Vector2{-10 + rect.x+rect.width-padding+5,rect.y+rect.height/2 - 2 + 5},
+        Vector2{-10 + rect.x+rect.width-padding+10,rect.y+rect.height/2 - 2},
+        (Color){50, 50, 50, 255});
+
+    std::string txt{text};
+    if (GuiButton(rect, txt.c_str())){
+        dstate->open = !dstate->open;
+    }
+
+    return dstate->open;
+}
 
 Model load_model(const State& state, const std::string& path) {
     auto model = LoadModel(path.c_str());
@@ -246,62 +270,70 @@ void do_objects_window(State& state) {
     cursor_x = panel_rec.x+panel_scroll.x;
     cursor_y = panel_rec.y+panel_scroll.y;
 
+    int i {0};
     for (auto& [model, model_state] : state.models) {
         std::stringstream ss;
 
         cursor_y += MENU_MARGIN;
-        if (GuiButton(Rectangle{cursor_x+MENU_MARGIN, cursor_y, sub_w-MENU_MARGIN*3, bh+10}, "#48#Insert Keyframe")) {
 
+        if (GuiDropDown(state, i++, Rectangle{cursor_x, cursor_y, sub_w, bh+10}, "Entity", 0)) {
+            cursor_y += bh+10+MENU_MARGIN;
+
+            if (GuiButton(Rectangle{cursor_x+MENU_MARGIN, cursor_y, sub_w-MENU_MARGIN*3, bh+10}, "#48#Insert Keyframe")) {
+
+            }
+            cursor_y += bh+10+MENU_MARGIN;
+
+            // TRANSFORM
+            GuiLabel(Rectangle{cursor_x, cursor_y, 100, 32}, "::[ TRANSLATION ]::");
+            cursor_y += 32;
+
+            auto* trans = &model_state.transform.translation;
+            auto* scale = &model_state.transform.scale;
+            auto* rotation = &model_state.transform.rotation;
+
+            auto r = Rectangle{cursor_x + 16, cursor_y + (32-24)/2, sub_w-(64), 24};
+
+            trans->x = GuiSlider(r, "X", TextFormat("%2.2f", (float)trans->x), trans->x, -10, 10); r.y += 32;
+            trans->y = GuiSlider(r, "Y", TextFormat("%2.2f", (float)trans->y), trans->y, -10, 10); r.y += 32;
+            trans->z = GuiSlider(r, "Z", TextFormat("%2.2f", (float)trans->z), trans->z, -10, 10); r.y += 32;
+
+            cursor_y += r.height * 3 + MENU_MARGIN * 3;
+            height += r.height * 3 + MENU_MARGIN * 3;
+
+            DrawRectangle(cursor_x + MENU_MARGIN / 2, cursor_y, sub_w - MENU_MARGIN / 2, 1, Color{200, 200, 200, 255});
+
+            cursor_y += 1 + MENU_MARGIN;
+
+            GuiLabel(Rectangle{cursor_x, cursor_y, 100, 32}, "::[ SCALE ]::");
+            cursor_y += 32;
+            r.y = cursor_y;
+
+            // SCALE
+            scale->x = GuiSlider(r, "X", TextFormat("%2.2f", (float)scale->x), scale->x, 0.001f, 10.f); r.y += 32;
+            scale->y = GuiSlider(r, "Y", TextFormat("%2.2f", (float)scale->y), scale->y, 0.001f, 10.f); r.y += 32;
+            scale->z = GuiSlider(r, "Z", TextFormat("%2.2f", (float)scale->z), scale->z, 0.001f, 10.f);
+
+            cursor_y = r.y + MENU_MARGIN*4;
+            DrawRectangle(cursor_x + MENU_MARGIN / 2, cursor_y, sub_w - MENU_MARGIN / 2, 1, Color{200, 200, 200, 255});
+            cursor_y += MENU_MARGIN;
+
+            GuiLabel(Rectangle{cursor_x, cursor_y, 100, 32}, "::[ COLOR ]::");
+
+            cursor_y += 32;
+            height += 32;
+
+            model.materials[0].maps[0].color =
+                GuiColorPicker(Rectangle{
+                        cursor_x,
+                        cursor_y,
+                        100, 100}, model.materials[0].maps[0].color);
+
+            cursor_y += 100 + MENU_MARGIN;
+            height += 100 + MENU_MARGIN;
         }
+
         cursor_y += bh+10+MENU_MARGIN;
-
-        // TRANSFORM
-        GuiLabel(Rectangle{cursor_x, cursor_y, 100, 32}, "::[ TRANSLATION ]::");
-        cursor_y += 32;
-
-        auto* trans = &model_state.transform.translation;
-        auto* scale = &model_state.transform.scale;
-        auto* rotation = &model_state.transform.rotation;
-
-        auto r = Rectangle{cursor_x + 16, cursor_y + (32-24)/2, sub_w-(64), 24};
-
-        trans->x = GuiSlider(r, "X", TextFormat("%2.2f", (float)trans->x), trans->x, -10, 10); r.y += 32;
-        trans->y = GuiSlider(r, "Y", TextFormat("%2.2f", (float)trans->y), trans->y, -10, 10); r.y += 32;
-        trans->z = GuiSlider(r, "Z", TextFormat("%2.2f", (float)trans->z), trans->z, -10, 10); r.y += 32;
-
-        cursor_y += r.height * 3 + MENU_MARGIN * 3;
-        height += r.height * 3 + MENU_MARGIN * 3;
-
-        DrawRectangle(cursor_x + MENU_MARGIN / 2, cursor_y, sub_w - MENU_MARGIN / 2, 1, Color{200, 200, 200, 255});
-
-        cursor_y += 1 + MENU_MARGIN;
-
-        GuiLabel(Rectangle{cursor_x, cursor_y, 100, 32}, "::[ SCALE ]::");
-        cursor_y += 32;
-        r.y = cursor_y;
-
-        // SCALE
-        scale->x = GuiSlider(r, "X", TextFormat("%2.2f", (float)scale->x), scale->x, 0.001f, 10.f); r.y += 32;
-        scale->y = GuiSlider(r, "Y", TextFormat("%2.2f", (float)scale->y), scale->y, 0.001f, 10.f); r.y += 32;
-        scale->z = GuiSlider(r, "Z", TextFormat("%2.2f", (float)scale->z), scale->z, 0.001f, 10.f);
-
-        cursor_y = r.y + MENU_MARGIN*4;
-        DrawRectangle(cursor_x + MENU_MARGIN / 2, cursor_y, sub_w - MENU_MARGIN / 2, 1, Color{200, 200, 200, 255});
-        cursor_y += MENU_MARGIN;
-
-        GuiLabel(Rectangle{cursor_x, cursor_y, 100, 32}, "::[ COLOR ]::");
-
-        cursor_y += 32;
-        height += 32;
-
-        model.materials[0].maps[0].color =
-            GuiColorPicker(Rectangle{
-                    cursor_x,
-                    cursor_y,
-                    100, 100}, model.materials[0].maps[0].color);
-
-        cursor_y += 100 + MENU_MARGIN;
-        height += 100 + MENU_MARGIN;
 
         DrawRectangle(cursor_x + MENU_MARGIN/2, cursor_y, sub_w-MENU_MARGIN/2, 3, Color{200, 200, 200, 255});
     }
