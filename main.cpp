@@ -480,6 +480,8 @@ int main () {
             draw_model(state, model_tuple);
         }
         DrawSphere(pos, 1, RED);
+        DrawGizmo(Vector3{-5, 0, -5});
+
         EndMode3D();
 
         do_gui(state);
