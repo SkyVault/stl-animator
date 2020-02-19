@@ -1,6 +1,6 @@
 #include "raylib.h"
 
-#include <string.h>
+#include <string>
 #include <iostream>
 #include <vector>
 #include <memory>
@@ -56,8 +56,6 @@ struct ModelGuiState {
     int active {0};
     int edit {1};
 
-    bool selected {false};
-
     Transform transform{Vector3{0,0,0}, Quaternion{0, 0, 0, 1}, Vector3{1, 1, 1}};
 
     std::vector<KeyFrame> keyframes{};
@@ -89,19 +87,22 @@ struct State {
     };
 
     int frame_selected {-1};
+    int model_selected {-1};
 };
 
 bool GuiDropDown(State& state, int id, Rectangle rect, const char* text, int flags) {
     auto* dstate = &state.toggle_drop_down_states[id];
 
-    const auto padding = GuiGetStyle(DROPDOWNBOX, ARROW_PADDING);
-    DrawTriangle(
-        Vector2{-10 + rect.x+rect.width-padding,rect.y+rect.height/2 - 2},
-        Vector2{-10 + rect.x+rect.width-padding+5,rect.y+rect.height/2 - 2 + 5},
-        Vector2{-10 + rect.x+rect.width-padding+10,rect.y+rect.height/2 - 2},
-        (Color){50, 50, 50, 255});
-
     std::string txt{text};
+
+    if (dstate->open) {
+        constexpr auto grow {4};
+        rect.x -= grow;
+        rect.width += grow*2;
+        rect.y -= grow;
+        rect.height += grow*2;
+    }
+
     if (GuiButton(rect, txt.c_str())){
         dstate->open = !dstate->open;
     }
@@ -276,11 +277,16 @@ void do_objects_window(State& state) {
 
         cursor_y += MARGIN;
 
-        if (GuiDropDown(state, i++, Rectangle{cursor_x, cursor_y, sub_w, bh+10}, "Entity", 0)) {
+        std::string s = "Model [" + std::to_string(i) + "]";
+        if (GuiDropDown(state, i++, Rectangle{cursor_x, cursor_y, sub_w, bh+10}, s.c_str(), 0)) {
             cursor_y += bh+10+MARGIN;
 
             if (GuiButton(Rectangle{cursor_x+MARGIN, cursor_y, sub_w-MARGIN*3, bh+10}, "#48#Insert Keyframe")) {
-
+                model_state.keyframes.push_back(KeyFrame{
+                        model_state.transform,
+                        Interp::LINEAR,
+                        (state.frame_selected<0)?0:state.frame_selected
+                    });
             }
             cursor_y += bh+10+MARGIN;
 
@@ -337,6 +343,7 @@ void do_objects_window(State& state) {
 
         DrawRectangle(cursor_x + MARGIN/2, cursor_y, sub_w-MARGIN/2, 3, Color{200, 200, 200, 255});
     }
+
     EndScissorMode();
 
     cursor_x = p_cursor_x;
@@ -423,6 +430,10 @@ int main () {
 
     GuiSetFont(state.font);
 
+    state.models.push_back(
+        {load_model(state, "models/monkey.obj"), {std::string{"monkey"}}});
+    state.models.push_back(
+        {load_model(state, "models/monkey.obj"), {std::string{"monkey"}}});
     state.models.push_back(
         {load_model(state, "models/monkey.obj"), {std::string{"monkey"}}});
 
