@@ -193,7 +193,7 @@ void do_menu_bar(State& state) {
             for (const auto& option : options) {
                 const auto [w, h] = MeasureTextEx(state.font, option.c_str(), font_size, 1);
                 if (w > panel_w) panel_w = w;
-                panel_h += h;
+                panel_h += h+MARGIN;
             }
 
             const auto drop_panel_reg = Rectangle{
@@ -391,6 +391,10 @@ void do_timeline(State& state) {
             state.frame_selected = i;
         }
     }
+
+    if (state.model_selected < 0) return;
+
+    const auto* selected_model = &state.models[state.model_selected];
 }
 
 void do_gui(State& state) {
@@ -450,12 +454,7 @@ int main () {
 
     GuiSetFont(state.font);
 
-    state.models.push_back(
-        {load_model(state, "models/monkey.obj"), {std::string{"monkey"}}});
-    state.models.push_back(
-        {load_model(state, "models/monkey.obj"), {std::string{"monkey"}}});
-    state.models.push_back(
-        {load_model(state, "models/monkey.obj"), {std::string{"monkey"}}});
+    state.models.push_back({load_model(state, "models/monkey.obj"), {std::string{"monkey"}}});
 
     while (!WindowShouldClose() && state.running) {
 
@@ -479,7 +478,7 @@ int main () {
         for (auto& model_tuple : state.models) {
             draw_model(state, model_tuple);
         }
-        DrawSphere(pos, 1, RED);
+        DrawSphere(pos, 1, YELLOW);
         DrawGizmo(Vector3{-5, 0, -5});
 
         EndMode3D();
