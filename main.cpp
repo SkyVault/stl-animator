@@ -392,9 +392,17 @@ void do_timeline(State& state) {
         }
     }
 
-    if (state.model_selected < 0) return;
-
-    const auto* selected_model = &state.models[state.model_selected];
+    if (state.model_selected >= 0){
+        const auto* selected_model = &state.models[state.model_selected];
+        for (const auto& frame : std::get<1>(*selected_model).keyframes) {
+            auto color = BLUE;
+            if (frame.start_frame == state.frame_selected)
+                color = (Color){100, 0, 255, 255};
+            DrawRectangle(
+                panel.x + 4 + frame_width * frame.start_frame,
+                panel.y + 4, frame_width, panel.height-8, color);
+        }
+    }
 }
 
 void do_gui(State& state) {
