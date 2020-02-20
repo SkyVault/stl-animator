@@ -5,7 +5,6 @@
 *.slo
 *.lo
 *.o
-*.obj
 
 # Precompiled Headers
 *.gch
@@ -33,3 +32,8 @@
 
 TAGS
 *.exe
+
+models/Base3.obj
+models/Base3.mtl
+models/z-assm.obj
+models/z-assm_2.obj
