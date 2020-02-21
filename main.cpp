@@ -96,9 +96,12 @@ struct State {
     };
 
     PlaybackState playback_state {PlaybackState::STOPPED};
+    PlaybackState last_playback_state {PlaybackState::STOPPED};
 
     int frame_selected {-1};
     int model_selected {-1};
+
+    int current_frame {0};
 
     bool running = true;
     bool window_locked {false};
@@ -107,6 +110,38 @@ struct State {
 void Lock(State& state) { state.window_locked = true; }
 void UnLock(State& state) { state.window_locked = false; }
 bool Locked(State& state) { return state.window_locked; }
+
+void Play(State& state) {
+    state.last_playback_state = state.playback_state;
+    state.playback_state = PlaybackState::PLAYING;
+}
+
+bool Playing(State& state) { return state.playback_state == PlaybackState::PLAYING; }
+
+void Pause(State& state) {
+    state.last_playback_state = state.playback_state;
+    state.playback_state = PlaybackState::PAUSED;
+}
+
+void TogglePlayPause(State& state) {
+    state.last_playback_state = state.playback_state;
+    if (state.playback_state == PlaybackState::PLAYING)
+        state.playback_state = PlaybackState::PAUSED;
+    else
+        state.playback_state = PlaybackState::PLAYING;
+}
+
+void Stop(State& state) {
+    state.last_playback_state = state.playback_state;
+    state.playback_state = PlaybackState::STOPPED;
+    state.current_frame = 0;
+}
+
+bool Played(State& state) {
+    return
+        state.last_playback_state != PlaybackState::PLAYING &&
+        Playing(state);
+}
 
 bool GuiDropDown(State& state, int id, Rectangle rect, const char* text, int flags) {
     auto* dstate = &state.toggle_drop_down_states[id];
@@ -401,17 +436,14 @@ void do_timeline(State& state) {
     char buff[100] = {0};
     //STOP
     if (GuiButton(Rectangle{cursor_x+panel.x + 4, panel.y + 4, btn_size, btn_size}, "#133#")) {
-        state.playback_state = PlaybackState::STOPPED;
+        Stop(state);
     }
     cursor_x += panel.height-8;
 
     //PLAY/PAUSE
     sprintf(buff, "%s", (state.playback_state == PlaybackState::PLAYING?"#132#":"#131#"));
     if (GuiButton(Rectangle{cursor_x+panel.x + 4, panel.y + 4, btn_size, btn_size}, buff)) {
-        if (state.playback_state == PlaybackState::PLAYING)
-            state.playback_state = PlaybackState::PAUSED;
-        else
-            state.playback_state = PlaybackState::PLAYING;
+        TogglePlayPause(state);
     }
     cursor_x += panel.height-8;
 
@@ -439,6 +471,11 @@ void do_timeline(State& state) {
         }
     }
 
+    // Draw current frame
+    DrawRectangle(
+        cursor_x + panel.x + 4 + frame_width * state.current_frame,
+        panel.y, frame_width, panel.height, (Color){255, 255, 0, 100});
+
     if (state.model_selected >= 0){
         const auto* selected_model = &state.models[state.model_selected];
         for (const auto& frame : std::get<1>(*selected_model).keyframes) {
@@ -461,9 +498,8 @@ void do_gui(State& state) {
 
     const auto status_region = (Rectangle){0, GetScreenHeight() - STATUS_BAR_HEIGHT, GetScreenWidth(), STATUS_BAR_HEIGHT};
     const auto mouse_pos = GetMousePosition();
-    GuiStatusBar(
-        status_region,
-        title.str().c_str());
+    GuiStatusBar(status_region, title.str().c_str());
+
     if (CheckCollisionPointRec(mouse_pos, status_region)) Lock(state);
 
     do_file_dialog_update(state);
@@ -480,6 +516,7 @@ void do_gui(State& state) {
     if (!state.file_dialog_state.fileDialogActive) {
         GuiUnlock();
     }
+
 }
 
 int main () {
@@ -531,6 +568,10 @@ int main () {
             UpdateCamera(&state.camera);          // Update camera
         }
 
+        if (Playing(state)) {
+            state.current_frame++;
+        }
+
         static float timer = 0;
 
         timer += GetFrameTime();
@@ -556,6 +597,8 @@ int main () {
         do_gui(state);
 
         EndDrawing();
+
+        state.last_playback_state = state.playback_state;
     }
 
     return 0;
