@@ -23,7 +23,7 @@
 #include "gui_file_dialog.h"
 
 constexpr auto MARGIN {10};
-constexpr auto TIMELINE_HEIGHT {32};
+constexpr auto TIMELINE_HEIGHT {48};
 constexpr auto STATUS_BAR_HEIGHT {20};
 constexpr auto TOTAL_BOTTOM_PANEL_HEIGHT {TIMELINE_HEIGHT+STATUS_BAR_HEIGHT};
 
@@ -93,7 +93,13 @@ struct State {
 
     int frame_selected {-1};
     int model_selected {-1};
+
+    bool window_locked {false};
 };
+
+void Lock(State& state) { state.window_locked = true; }
+void UnLock(State& state) { state.window_locked = false; }
+bool Locked(State& state) { return state.window_locked; }
 
 bool GuiDropDown(State& state, int id, Rectangle rect, const char* text, int flags) {
     auto* dstate = &state.toggle_drop_down_states[id];
@@ -252,8 +258,7 @@ void do_objects_window(State& state) {
     auto win_reg = Rectangle{GetScreenWidth()-256, 32, 256, GetScreenHeight() - TOTAL_BOTTOM_PANEL_HEIGHT};
     GuiWindowBox(win_reg, "Inspector");
 
-    if (!CheckCollisionPointRec(GetMousePosition(), win_reg)) GuiLock();
-    else GuiUnlock();
+    if (CheckCollisionPointRec(GetMousePosition(), win_reg)) Lock(state);
 
     float cursor_x = win_reg.x+MARGIN, cursor_y = win_reg.y+32;
     const float sub_w = win_reg.width - MARGIN*2;
@@ -374,20 +379,42 @@ void do_timeline(State& state) {
     auto panel = Rectangle{0, GetScreenHeight()-TOTAL_BOTTOM_PANEL_HEIGHT, GetScreenWidth(), TIMELINE_HEIGHT};
     GuiPanel(panel);
 
+    constexpr auto frame_width = 16;
+    const auto btn_size = panel.height - 8;
+    const auto mouse_pos = GetMousePosition();
+    // Lock the ui
+    if (CheckCollisionPointRec(mouse_pos, panel)) {
+        Lock(state);
+    }
+
     DrawRectangle(panel.x + 4, panel.y + 4, panel.width-8, panel.height-8, Color{50, 50, 50, 255});
 
-    constexpr auto frame_width = 8;
+    auto cursor_x = 0;
+    if (GuiButton(Rectangle{cursor_x+panel.x + 4, panel.y + 4, btn_size, btn_size}, "#133#")) {
 
-    const auto mouse_pos = GetMousePosition();
+    }
+    cursor_x += panel.height-8;
+    if (GuiButton(Rectangle{cursor_x+panel.x + 4, panel.y + 4, btn_size, btn_size}, "#131#")) {
+
+    }
+    cursor_x += panel.height-8;
+    if (GuiButton(Rectangle{cursor_x+panel.x + 4, panel.y + 4, btn_size, btn_size/2}, "#114#")) {
+
+    }
+    if (GuiButton(Rectangle{cursor_x+panel.x + 4, panel.y + 4+btn_size/2, btn_size, btn_size/2}, "#115#")) {
+
+    }
+    cursor_x += panel.height-8;
 
     // We have a max animation length of a minute at 60 frames a second
     for (int i = 0; i < (FRAMES_A_SECOND*60); i++) {
         auto c = i == state.frame_selected ? Color{255, 0, 255, 255} : Color{100, 100, 100, 255};
-        DrawRectangle(panel.x + 4 + frame_width * i, panel.y + 4, frame_width, panel.height-8, c);
-        DrawRectangle((panel.x + 4 + frame_width * i) + frame_width - 1, panel.y + 4, 1, panel.height-8, Color{0, 0, 0, 255});
+        auto r = Rectangle{cursor_x + panel.x + 4 + frame_width * i, panel.y + 4, frame_width, panel.height-8};
+        DrawRectangle(r.x, r.y, r.width, r.height, c);
+        DrawRectangle(cursor_x + (panel.x + 4 + frame_width * i) + frame_width - 1, panel.y + 4, 1, panel.height-8, Color{0, 0, 0, 255});
 
-        if (!IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) continue;
-        if (CheckCollisionPointRec(mouse_pos, Rectangle{panel.x+4+frame_width*i,panel.y+4,frame_width,panel.height-8})){
+        if (!IsMouseButtonDown(MOUSE_LEFT_BUTTON)) continue;
+        if (CheckCollisionPointRec(mouse_pos, r)){
             state.frame_selected = i;
         }
     }
@@ -399,28 +426,40 @@ void do_timeline(State& state) {
             if (frame.start_frame == state.frame_selected)
                 color = (Color){100, 0, 255, 255};
             DrawRectangle(
-                panel.x + 4 + frame_width * frame.start_frame,
+                cursor_x + panel.x + 4 + frame_width * frame.start_frame,
                 panel.y + 4, frame_width, panel.height-8, color);
         }
     }
 }
 
 void do_gui(State& state) {
-    do_file_dialog_update(state);
-
-    if (state.file_dialog_state.fileDialogActive) GuiLock();
-    do_menu_bar(state);
-    do_objects_window(state);
-    do_timeline(state);
-    GuiUnlock();
+    UnLock(state);
 
     std::stringstream title;
     title << "FPS: "
           << 1.0f/GetFrameTime();
 
+    const auto status_region = (Rectangle){0, GetScreenHeight() - STATUS_BAR_HEIGHT, GetScreenWidth(), STATUS_BAR_HEIGHT};
+    const auto mouse_pos = GetMousePosition();
     GuiStatusBar(
-        (Rectangle){0, GetScreenHeight() - STATUS_BAR_HEIGHT, GetScreenWidth(), STATUS_BAR_HEIGHT},
+        status_region,
         title.str().c_str());
+    if (CheckCollisionPointRec(mouse_pos, status_region)) Lock(state);
+
+    do_file_dialog_update(state);
+
+    if (state.file_dialog_state.fileDialogActive) {
+        GuiLock();
+        Lock(state);
+    }
+
+    do_menu_bar(state);
+    do_objects_window(state);
+    do_timeline(state);
+
+    if (!state.file_dialog_state.fileDialogActive) {
+        GuiUnlock();
+    }
 }
 
 int main () {
@@ -467,7 +506,10 @@ int main () {
     while (!WindowShouldClose() && state.running) {
 
         // Update
-        if (1) UpdateCamera(&state.camera);          // Update camera
+        if (!Locked(state)) {
+            printf("locked%d\n", rand());
+            UpdateCamera(&state.camera);          // Update camera
+        }
 
         static float timer = 0;
 
