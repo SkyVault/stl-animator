@@ -37,6 +37,12 @@ enum class Interp {
     LINEAR,
 };
 
+enum class PlaybackState {
+    PLAYING,
+    STOPPED,
+    PAUSED,
+};
+
 struct KeyFrame {
     Transform transform;
     Interp interpolation{Interp::LINEAR};
@@ -67,8 +73,6 @@ struct ModelGuiState {
 };
 
 struct State {
-    bool running = true;
-
     Shader shader {{}};
 
     Camera camera {{}};
@@ -91,9 +95,12 @@ struct State {
         {"Render", {}},
     };
 
+    PlaybackState playback_state {PlaybackState::STOPPED};
+
     int frame_selected {-1};
     int model_selected {-1};
 
+    bool running = true;
     bool window_locked {false};
 };
 
@@ -390,17 +397,30 @@ void do_timeline(State& state) {
     DrawRectangle(panel.x + 4, panel.y + 4, panel.width-8, panel.height-8, Color{50, 50, 50, 255});
 
     auto cursor_x = 0;
+
+    char buff[100] = {0};
+    //STOP
     if (GuiButton(Rectangle{cursor_x+panel.x + 4, panel.y + 4, btn_size, btn_size}, "#133#")) {
-
+        state.playback_state = PlaybackState::STOPPED;
     }
     cursor_x += panel.height-8;
-    if (GuiButton(Rectangle{cursor_x+panel.x + 4, panel.y + 4, btn_size, btn_size}, "#131#")) {
 
+    //PLAY/PAUSE
+    sprintf(buff, "%s", (state.playback_state == PlaybackState::PLAYING?"#132#":"#131#"));
+    if (GuiButton(Rectangle{cursor_x+panel.x + 4, panel.y + 4, btn_size, btn_size}, buff)) {
+        if (state.playback_state == PlaybackState::PLAYING)
+            state.playback_state = PlaybackState::PAUSED;
+        else
+            state.playback_state = PlaybackState::PLAYING;
     }
     cursor_x += panel.height-8;
+
+    //SCROLL LEFT
     if (GuiButton(Rectangle{cursor_x+panel.x + 4, panel.y + 4, btn_size, btn_size/2}, "#114#")) {
-
+        
     }
+
+    // SCROLL RIGHT
     if (GuiButton(Rectangle{cursor_x+panel.x + 4, panel.y + 4+btn_size/2, btn_size, btn_size/2}, "#115#")) {
 
     }
