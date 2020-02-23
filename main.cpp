@@ -43,17 +43,17 @@ enum class PlaybackState {
     PAUSED,
 };
 
+struct MenuButtonState {
+    std::string label {"Menu"};
+    std::vector<std::string> sub_options;
+    bool show_dropdown {false};
+};
+
 struct KeyFrame {
     Transform transform;
     Interp interpolation{Interp::LINEAR};
 
     int start_frame {0}; // Where the keyframe is located in time
-};
-
-struct MenuButtonState {
-    std::string label {"Menu"};
-    std::vector<std::string> sub_options;
-    bool show_dropdown {false};
 };
 
 struct ModelGuiState {
@@ -69,6 +69,7 @@ struct ModelGuiState {
 
     Transform transform{Vector3{0,0,0}, Quaternion{0, 0, 0, 1}, Vector3{1, 1, 1}};
 
+    int current_keyframe {0};
     std::vector<KeyFrame> keyframes{};
 };
 
@@ -135,12 +136,53 @@ void Stop(State& state) {
     state.last_playback_state = state.playback_state;
     state.playback_state = PlaybackState::STOPPED;
     state.current_frame = 0;
+
+    for (auto& [_, m] : state.models) {
+        m.current_keyframe = 0;
+    }
 }
 
 bool Played(State& state) {
     return
         state.last_playback_state != PlaybackState::PLAYING &&
         Playing(state);
+}
+
+void update_model_gui_state_animation(State& state, ModelGuiState& self) {
+    auto lerp = [](float a, float b, float t) -> float {
+        return a + (b - a) * t;
+    };
+
+    if (self.keyframes.size() < 2) return;
+    if (!Playing(state)) return;
+    
+    if (self.current_keyframe < self.keyframes.size()-1)/* check if we are the first keyframe */ {
+        const auto& a = self.keyframes[self.current_keyframe];
+        const auto& b = self.keyframes[self.current_keyframe+1];
+
+        const auto& ta = a.transform;
+        const auto& tb = b.transform;
+
+        const auto frame_delta = abs(b.start_frame - a.start_frame);
+
+        const float end = ((float)(state.current_frame - a.start_frame) / (float)frame_delta);
+
+        if (end >= 1.0f) {
+            self.current_keyframe += 1;
+        } else {
+            const float dx = lerp(ta.translation.x, tb.translation.x, end);
+            const float dy = lerp(ta.translation.y, tb.translation.y, end);
+            const float dz = lerp(ta.translation.z, tb.translation.z, end);
+
+            const float delta_x = tb.translation.x - ta.translation.x;
+            const float delta_y = tb.translation.y - ta.translation.y;
+            const float delta_z = tb.translation.z - ta.translation.z;
+
+            self.transform.translation.x = ta.translation.x + (delta_x/2.f) + dx;
+            self.transform.translation.y = ta.translation.y + (delta_y/2.f) + dy;
+            self.transform.translation.z = ta.translation.z + (delta_z/2.f) + dz;
+        }
+    }
 }
 
 bool GuiDropDown(State& state, int id, Rectangle rect, const char* text, int flags) {
@@ -433,7 +475,6 @@ void do_timeline(State& state) {
 
     auto cursor_x = 0;
 
-    char buff[100] = {0};
     //STOP
     if (GuiButton(Rectangle{cursor_x+panel.x + 4, panel.y + 4, btn_size, btn_size}, "#133#")) {
         Stop(state);
@@ -441,6 +482,7 @@ void do_timeline(State& state) {
     cursor_x += panel.height-8;
 
     //PLAY/PAUSE
+    char buff[100] = {0};
     sprintf(buff, "%s", (state.playback_state == PlaybackState::PLAYING?"#132#":"#131#"));
     if (GuiButton(Rectangle{cursor_x+panel.x + 4, panel.y + 4, btn_size, btn_size}, buff)) {
         TogglePlayPause(state);
@@ -564,12 +606,14 @@ int main () {
 
         // Update
         if (!Locked(state)) {
-            printf("locked%d\n", rand());
             UpdateCamera(&state.camera);          // Update camera
         }
 
         if (Playing(state)) {
             state.current_frame++;
+
+            for (auto& [_, self] : state.models)
+                update_model_gui_state_animation(state, self);
         }
 
         static float timer = 0;
@@ -591,6 +635,7 @@ int main () {
         }
         DrawSphere(pos, 1, YELLOW);
         DrawGizmo(Vector3{-5, 0, -5});
+        DrawGrid(20, 2);
 
         EndMode3D();
 
