@@ -318,6 +318,7 @@ void do_menu_bar(State& state) {
 }
 
 void do_file_dialog_update(State& state) {
+    GuiUnlock();
     if (state.file_dialog_state.SelectFilePressed) {
         // Load file
 
@@ -542,9 +543,9 @@ void do_gui(State& state) {
     const auto mouse_pos = GetMousePosition();
     GuiStatusBar(status_region, title.str().c_str());
 
-    if (CheckCollisionPointRec(mouse_pos, status_region)) Lock(state);
-
     do_file_dialog_update(state);
+
+    if (CheckCollisionPointRec(mouse_pos, status_region)) Lock(state);
 
     if (state.file_dialog_state.fileDialogActive) {
         GuiLock();
